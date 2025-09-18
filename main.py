@@ -857,6 +857,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         QMessageBox.information(self, "About", "Aplikasi Image Processing Sederhana\nDibuat dengan PyQt5 + PIL\n")
 
     # ============================================================
+
+    def apply_brightness_contrast(self, brightness=30, contrast=30):
+        if self.original_image is None:
+            return
+
+        import cv2
+        import numpy as np
+        from PIL import Image
+
+        # Convert PIL Image ke OpenCV
+        img = np.array(self.original_image.convert("RGB"))
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+        # Atur brightness & contrast
+        beta = brightness  # brightness
+        alpha = contrast / 127 + 1.0  # contrast factor
+
+        adjusted = cv2.convertScaleAbs(img, alpha=alpha, beta=beta)
+
+        # Simpan hasil
+        self.processed_image = adjusted
+
+        # Tampilkan lagi ke label kanan
+        self.show_image(Image.fromarray(cv2.cvtColor(adjusted, cv2.COLOR_BGR2RGB)), self.image_label_right)
+
     # ========== SLOT UNTUK CROP ================================
     # ============================================================
     def on_crop_selection(self, rect: QRect):
@@ -911,16 +936,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self._crop_mode = False
 
-
-
-
 # ---------- Main ----------
 def main():
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
-
 
 if __name__ == "__main__":
     main()
