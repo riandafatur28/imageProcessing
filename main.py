@@ -41,6 +41,8 @@ class SliderDialog(QDialog):
         self.label.setText(f"Value: {self.value}")
 
 
+
+
 # ---------- Average Filter Dialog ----------
 class AverageFilterDialog(QDialog):
     def __init__(self, title="Average Filter", min_val=3, max_val=15, init_val=3):
@@ -206,6 +208,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         seg_menu = self.menuBar().addMenu("Segmentation")
 
         # Tambah QAction
+        self.actionView_All_Segmentations = QAction("View All Segmentations", self)
         self.actionGlobal_Thresholding = QAction("Global Thresholding", self)
         self.actionAdaptive_Thresholding = QAction("Adaptive Thresholding", self)
         self.actionK_Means = QAction("K-Means", self)
@@ -218,6 +221,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         seg_menu.addAction(self.actionK_Means)
         seg_menu.addAction(self.actionWatershed)
         seg_menu.addAction(self.actionRegion_Growing)
+        seg_menu.addSeparator()
+        seg_menu.addAction(self.actionView_All_Segmentations)
 
         # Hubungkan aksi ke method
         self.actionGlobal_Thresholding.triggered.connect(self.apply_global_threshold)
@@ -269,6 +274,60 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # ---------- Menu / Actions ----------
         self.connect_actions()
+
+    # Show All Segmentation
+    def show_all_segmentations(self):
+        if self.original_image is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
+
+        seg_results = {}
+        methods = [
+            ("Global Thresholding", "global_threshold"),
+            ("Adaptive Thresholding", "adaptive_threshold"),
+            ("K-Means", "kmeans_clustering"),
+            ("Watershed", "watershed_segmentation"),
+            ("Region Growing", "region_growing")
+        ]
+
+        for name, method in methods:
+            func = getattr(self.processor, method, None)
+            if func:
+                # Atur parameter default jika dibutuhkan
+                if method == "kmeans_clustering":
+                    seg_results[name] = func(self.original_image, K=3)
+                elif method == "region_growing":
+                    seg_results[name] = func(self.original_image, seed_point=(50, 50), threshold=15)
+                else:
+                    seg_results[name] = func(self.original_image)
+
+        # Plot semua hasil
+        import matplotlib.pyplot as plt
+        total = len(seg_results) + 1  # termasuk original
+        rows, cols = 3, 2  # 3 kebawah x 2 kesamping
+        plt.figure(figsize=(6 * cols, 4 * rows))
+
+        # Original
+        plt.subplot(rows, cols, 1)
+        if self.original_image.mode == "L":
+            plt.imshow(self.original_image, cmap="gray")
+        else:
+            plt.imshow(self.original_image)
+        plt.title("Original")
+        plt.axis("off")
+
+        # Segmentasi
+        for i, (title, img) in enumerate(seg_results.items(), start=2):
+            plt.subplot(rows, cols, i)
+            if img.mode == "L":
+                plt.imshow(img, cmap="gray")
+            else:
+                plt.imshow(img)
+            plt.title(title)
+            plt.axis("off")
+
+        plt.tight_layout()
+        plt.show()
 
     # ============================================================
     # ========== CONNECT ACTIONS ================================
@@ -358,6 +417,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         safe_connect("actionInput_Output", self.show_histogram_input_output)
 
         # Segmentation
+        safe_connect("actionView_All_Segmentations", self.show_all_segmentations)
         safe_connect("actionGlobal_Thresholding", self.apply_global_threshold)
         safe_connect("actionAdaptive_Thresholding", self.apply_adaptive_threshold)
         safe_connect("actionK_Means", self.apply_kmeans)
