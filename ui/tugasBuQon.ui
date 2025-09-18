@@ -75,6 +75,7 @@
     <addaction name="actionTranslation"/>
     <addaction name="actionRotation"/>
     <addaction name="actionCropping"/>
+    <addaction name="actionRemoveBG"/>
    </widget>
    <widget class="QMenu" name="menuColors">
     <property name="title">
@@ -543,6 +544,12 @@
     <string>Flip Horizontal</string>
    </property>
   </action>
+     <action name="actionRemoveBG">
+   <property name="text">
+    <string>Remove Background</string>
+   </property>
+  </action>
+
  </widget>
  <resources/>
  <connections/>

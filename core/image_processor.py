@@ -580,3 +580,55 @@ class ImageProcessor:
             plt.axis("off")
         plt.tight_layout()
         plt.show()
+
+    def morphology(self, pil_img, operation="Erosion", kernel_type="Square", ksize=3):
+        # Konversi PIL → OpenCV
+        img = np.array(pil_img.convert("RGB"))
+
+        # Tentukan kernel
+        if kernel_type == "Square":
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (ksize, ksize))
+        elif kernel_type == "Cross":
+            kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (ksize, ksize))
+        else:
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksize, ksize))
+
+        # Pisah channel RGB
+        channels = cv2.split(img)
+        processed = []
+
+        for ch in channels:
+            if operation == "Erosion":
+                result = cv2.erode(ch, kernel, iterations=1)
+            elif operation == "Dilation":
+                result = cv2.dilate(ch, kernel, iterations=1)
+            elif operation == "Opening":
+                result = cv2.morphologyEx(ch, cv2.MORPH_OPEN, kernel)
+            elif operation == "Closing":
+                result = cv2.morphologyEx(ch, cv2.MORPH_CLOSE, kernel)
+            else:
+                result = ch
+            processed.append(result)
+
+        merged = cv2.merge(processed)
+        return Image.fromarray(merged)
+
+    def remove_background(self, pil_img, threshold=250):
+        """
+        Menghapus background putih dari gambar (bisa diatur threshold).
+        """
+        img = np.array(pil_img.convert("RGBA"))  # RGBA untuk transparansi
+
+        # Pisahkan channel
+        gray = cv2.cvtColor(img, cv2.COLOR_RGBA2GRAY)
+
+        # Buat mask background
+        _, mask = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY)
+
+        # Invert mask (objek = 255, background = 0)
+        mask_inv = cv2.bitwise_not(mask)
+
+        # Tambahkan alpha channel (pakai mask)
+        img[:, :, 3] = mask_inv
+
+        return Image.fromarray(img, "RGBA")

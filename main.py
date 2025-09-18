@@ -1,6 +1,8 @@
 # main.py (PERBAIKAN LENGKAP)
 import sys
 import math
+
+import cv2
 import numpy as np
 from PIL import Image
 from PyQt5.QtCore import Qt, QRect, QPoint, pyqtSignal, QSize, QEvent
@@ -238,6 +240,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionZoomIn = QAction("Zoom In", self)
         self.actionZoomOut = QAction("Zoom Out", self)
         self.actionCrop = QAction("Crop", self)
+        self.actionRemoveBG = QAction("Remove Background", self)
+        self.actionRemoveBG.setObjectName("actionRemoveBG")
 
         self.menuView.addAction(self.actionFlip_H)
         self.menuView.addAction(self.actionFlip_V)
@@ -246,6 +250,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.menuView.addAction(self.actionZoomIn)
         self.menuView.addAction(self.actionZoomOut)
         self.menuView.addAction(self.actionCrop)
+        self.menuView.addAction(self.actionRemoveBG)
+        self.actionRemoveBG.triggered.connect(self.apply_remove_bg)
 
         # ---------- State ----------
         self.original_image = None
@@ -253,6 +259,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.processor = ImageProcessor()
         self._zoom_factor = 1.0
         self._crop_mode = False
+
+        # Erosion
+        self.actionSquare_3.triggered.connect(lambda: self.apply_morphology("Erosion", "Square", 3))
+        self.actionSquare_5.triggered.connect(lambda: self.apply_morphology("Erosion", "Square", 5))
+        self.actionCross_3.triggered.connect(lambda: self.apply_morphology("Erosion", "Cross", 3))
+
+        # Dilation
+        self.actionSquare_4.triggered.connect(lambda: self.apply_morphology("Dilation", "Square", 4))
+        self.actionSquare_6.triggered.connect(lambda: self.apply_morphology("Dilation", "Square", 6))
+        self.actionCross_4.triggered.connect(lambda: self.apply_morphology("Dilation", "Cross", 4))
+
+        # Opening
+        self.actionSquare_9.triggered.connect(lambda: self.apply_morphology("Opening", "Square", 9))
+
+        # Closing
+        self.actionSquare_10.triggered.connect(lambda: self.apply_morphology("Closing", "Square", 10))
 
         # ---------- Layout kiri ----------
         self.image_label_left = CropLabel()
@@ -353,6 +375,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         safe_connect("actionZoomIn", lambda: self.view_operation("zoom_in"))
         safe_connect("actionZoomOut", lambda: self.view_operation("zoom_out"))
         safe_connect("actionCrop", lambda: self.view_operation("crop"))
+        safe_connect("actionRemoveBG", self.apply_remove_bg)
 
         # Filters / Colors mapping
         filter_map = {
@@ -474,6 +497,51 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if file_name:
             self.processed_image.save(file_name)
 
+    # Morpologi
+    def apply_morphology(self, operation=None, kernel_type="Square", ksize=3):
+        if self.original_image:
+            f = getattr(self.processor, "morphology", None)
+            if f:
+                # Kalau operation None → tampilkan dialog pilihan
+                if operation is None:
+                    from PyQt5.QtWidgets import QInputDialog
+                    options = [
+                        "Erosion - Square 3",
+                        "Erosion - Square 5",
+                        "Erosion - Cross 3",
+                        "Dilation - Square 3",
+                        "Dilation - Square 5",
+                        "Dilation - Cross 3",
+                        "Opening - Square 9",
+                        "Closing - Square 9"
+                    ]
+                    item, ok = QInputDialog.getItem(self, "Pilih Operasi Morfologi", "Operasi:", options, 0, False)
+                    if not ok:
+                        return
+
+                    # mapping string ke parameter
+                    if "Erosion" in item:
+                        operation = "Erosion"
+                    elif "Dilation" in item:
+                        operation = "Dilation"
+                    elif "Opening" in item:
+                        operation = "Opening"
+                    elif "Closing" in item:
+                        operation = "Closing"
+
+                    if "Square 3" in item:
+                        kernel_type, ksize = "Square", 3
+                    elif "Square 5" in item:
+                        kernel_type, ksize = "Square", 5
+                    elif "Cross 3" in item:
+                        kernel_type, ksize = "Cross", 3
+                    elif "Square 9" in item:
+                        kernel_type, ksize = "Square", 9
+
+                # Jalankan proses morfologi
+                self.processed_image = f(self.original_image, operation, kernel_type, ksize)
+                self.show_image(self.processed_image, self.image_label_right)
+
     # ---------- VIEW / TRANSFORM (lengkap) ----------
     def view_operation(self, op):
         if self.original_image is None:
@@ -528,6 +596,75 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         if self.processed_image:
             self.show_image(self.processed_image, self.image_label_right)
+
+    def qimage_to_cv(self, qimage):
+        """Konversi QImage ke numpy array OpenCV (BGR)."""
+        qimage = qimage.convertToFormat(4)  # QImage.Format_RGBA8888
+        width = qimage.width()
+        height = qimage.height()
+        ptr = qimage.bits()
+        ptr.setsize(height * width * 4)
+        arr = np.frombuffer(ptr, np.uint8).reshape((height, width, 4))
+        return cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
+
+    def pil_to_cv(self, pil_image):
+        """Konversi PIL.Image ke numpy array OpenCV (BGR)."""
+        import numpy as np
+        import cv2
+
+        # pastikan RGB
+        rgb_image = pil_image.convert("RGB")
+        np_image = np.array(rgb_image)
+
+        # konversi ke BGR (format default OpenCV)
+        return cv2.cvtColor(np_image, cv2.COLOR_RGB2BGR)
+
+    def apply_remove_bg(self):
+        if self.original_image is None:
+            return
+
+        # konversi ke numpy (PIL → OpenCV BGR)
+        img = self.pil_to_cv(self.original_image)
+
+        import cv2
+        import numpy as np
+        from PIL import Image
+
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        # ambil warna background dari pojok kiri atas
+        bg_color = img[0, 0].tolist()
+        bg_color = np.uint8([[bg_color]])
+        hsv_bg = cv2.cvtColor(bg_color, cv2.COLOR_BGR2HSV)[0][0]
+
+        # toleransi default
+        h_tol, s_tol, v_tol = 15, 50, 50
+
+        lower = np.array([
+            max(0, int(hsv_bg[0]) - h_tol),
+            max(0, int(hsv_bg[1]) - s_tol),
+            max(0, int(hsv_bg[2]) - v_tol)
+        ], dtype=np.uint8)
+
+        upper = np.array([
+            min(179, int(hsv_bg[0]) + h_tol),
+            min(255, int(hsv_bg[1]) + s_tol),
+            min(255, int(hsv_bg[2]) + v_tol)
+        ], dtype=np.uint8)
+
+        # bikin mask & alpha
+        mask = cv2.inRange(hsv, lower, upper)
+        alpha = cv2.bitwise_not(mask)
+
+        # gabungkan jadi RGBA (OpenCV pakai BGRA)
+        b, g, r = cv2.split(img)
+        rgba = cv2.merge([b, g, r, alpha])
+
+        # konversi ke PIL supaya show_image bisa baca
+        rgba_pil = Image.fromarray(cv2.cvtColor(rgba, cv2.COLOR_BGRA2RGBA))
+
+        self.processed_image = rgba_pil
+        self.show_image(self.processed_image, self.image_label_right)
 
     def wheelEvent(self, event):
         if self.original_image is None:
@@ -773,6 +910,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.show_image(self.processed_image, self.image_label_right)
 
         self._crop_mode = False
+
+
 
 
 # ---------- Main ----------
