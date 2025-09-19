@@ -257,6 +257,7 @@ class Ui_MainWindow(object):
         self.menuFilter.addAction(self.actionAverage_Filter)
         self.menuFilter.addAction(self.actionLow_Pass_Filter)
         self.menuFilter.addAction(self.actionHigh_Pass_Filter)
+        self.menuFilter.addAction(MainWindow.actionBandstop_Filter)
         self.menuEdge_Detection.addAction(self.actionPrewitt)
         self.menuEdge_Detection.addAction(self.actionSobel)
         self.menuErosion.addAction(self.actionSquare_3)

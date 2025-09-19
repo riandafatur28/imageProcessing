@@ -4,6 +4,8 @@ import numpy as np
 from PyQt5.QtWidgets import QVBoxLayout, QDialog, QMessageBox
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from PIL import ImageFilter, ImageChops
+
 
 
 class ImageProcessor:
@@ -188,6 +190,16 @@ class ImageProcessor:
                                      -1, 8, -1,
                                      -1, -1, -1], scale=1)
         return image.filter(kernel)
+
+    def bandstop_filter(self, image):
+        # Low-pass
+        low = self.low_pass_filter(image)
+        # High-pass
+        high = self.high_pass_filter(image)
+        # Gabungkan: bandstop = original - high + low
+        temp = ImageChops.subtract(image, high)
+        bandstop = ImageChops.add(temp, low)
+        return bandstop
 
     # ================= HELP: 2D Convolution =================
     def convolve2d(self, image, kernel):

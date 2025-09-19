@@ -429,6 +429,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         safe_connect("actionAverage_Filter", lambda: self.apply_average_filter_dialog())
         safe_connect("actionLow_Pass_Filter", lambda: self.apply_by_name("low_pass_filter"))
         safe_connect("actionHigh_Pass_Filter", lambda: self.apply_by_name("high_pass_filter"))
+        safe_connect("actionBandstop_Filter", lambda: self.apply_by_name("bandstop_filter"))
         safe_connect("actionGaussian_Blur_3x3", lambda: self.apply_gaussian(3))
         safe_connect("actionGaussian_Blur_5x5", lambda: self.apply_gaussian(5))
         safe_connect("actionPrewitt", lambda: self.apply_by_name("edge_detection_prewitt"))
