@@ -216,7 +216,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
-        # Buat action Tentang langsung
+        ## Buat action Tentang langsung
         self.actionTentang = QtWidgets.QAction("Tentang", self)
         self.actionTentang.triggered.connect(self.show_about_popup)
 
