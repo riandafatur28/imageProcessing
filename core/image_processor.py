@@ -6,8 +6,6 @@ from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PIL import ImageFilter, ImageChops
 
-
-
 class ImageProcessor:
     # ================= RGB Colors =================
     def to_yellow(self, image):
