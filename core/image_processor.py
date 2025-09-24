@@ -447,66 +447,90 @@ class ImageProcessor:
 
         return Image.fromarray(img_fuzzy)
 
-    # ================= Histogram Input vs Output (dengan gambar) =================
+    # ================= Histogram Input vs Output (adaptif RGB / Grayscale) =================
     def show_histogram_input_output(self, image_in, image_out):
         if image_in is None or image_out is None:
             QMessageBox.warning(None, "Warning", "Buka gambar dan lakukan proses dulu!")
             return
 
-        np_in = np.array(image_in.convert("RGB"))
-        np_out = np.array(image_out.convert("RGB"))
+        # Deteksi mode gambar
+        mode_in = "RGB" if image_in.mode == "RGB" else "L"
+        mode_out = "RGB" if image_out.mode == "RGB" else "L"
 
-        # Buat subplot: 4 baris (gambar + 3 channel), 2 kolom (input/output)
-        fig, axes = plt.subplots(4, 2, figsize=(12, 12))
-        channels = ["Red", "Green", "Blue"]
-        colors = ["red", "green", "blue"]
+        np_in = np.array(image_in.convert(mode_in))
+        np_out = np.array(image_out.convert(mode_out))
+
+        # --- Buat subplot: 2 kolom (input/output), baris menyesuaikan channel terbanyak ---
+        max_channels = 3 if (mode_in == "RGB" or mode_out == "RGB") else 1
+        fig, axes = plt.subplots(max_channels + 1, 2, figsize=(12, 3 * (max_channels + 1)))
+
+        if max_channels == 1:
+            axes = np.array([axes])  # supaya konsisten indexing
 
         # --- Baris 1: tampilkan gambar ---
-        axes[0, 0].imshow(image_in)
+        axes[0, 0].imshow(image_in, cmap="gray" if mode_in == "L" else None)
         axes[0, 0].set_title("Gambar Input", fontsize=12, fontweight="bold")
         axes[0, 0].axis("off")
 
-        axes[0, 1].imshow(image_out)
+        axes[0, 1].imshow(image_out, cmap="gray" if mode_out == "L" else None)
         axes[0, 1].set_title("Gambar Output", fontsize=12, fontweight="bold")
         axes[0, 1].axis("off")
 
-        # --- Range Y fix ---
-        y_min, y_max = 1000, 40000
+        # --- Range Y fix biar konsisten ---
+        y_min, y_max = 0, None
 
         # --- Histogram untuk setiap channel ---
-        for i in range(3):
+        if mode_in == "RGB":
+            channels_in = ["Red", "Green", "Blue"]
+            colors_in = ["red", "green", "blue"]
+        else:
+            channels_in = ["Grayscale"]
+            colors_in = ["black"]
+
+        if mode_out == "RGB":
+            channels_out = ["Red", "Green", "Blue"]
+            colors_out = ["red", "green", "blue"]
+        else:
+            channels_out = ["Grayscale"]
+            colors_out = ["black"]
+
+        for i in range(max_channels):
             # Input
-            axes[i + 1, 0].hist(
-                np_in[:, :, i].ravel(), bins=256, color=colors[i], alpha=0.7
-            )
-            axes[i + 1, 0].set_xlim([0, 255])
-            axes[i + 1, 0].set_ylim([y_min, y_max])
-            axes[i + 1, 0].set_title(f"Input {channels[i]}", fontsize=11)
-            axes[i + 1, 0].set_xlabel("Intensitas (0-255)")
-            axes[i + 1, 0].set_ylabel("Jumlah Piksel")
-            axes[i + 1, 0].grid(True, linestyle="--", alpha=0.5)
+            if i < len(channels_in):
+                data_in = np_in[:, :, i] if mode_in == "RGB" else np_in
+                axes[i + 1, 0].hist(data_in.ravel(), bins=256, color=colors_in[i], alpha=0.7)
+                axes[i + 1, 0].set_xlim([0, 255])
+                axes[i + 1, 0].set_ylim([y_min, y_max])
+                axes[i + 1, 0].set_title(f"Input {channels_in[i]}", fontsize=11)
+                axes[i + 1, 0].set_xlabel("Intensitas (0-255)")
+                axes[i + 1, 0].set_ylabel("Jumlah Piksel")
+                axes[i + 1, 0].grid(True, linestyle="--", alpha=0.5)
+            else:
+                axes[i + 1, 0].axis("off")
 
             # Output
-            axes[i + 1, 1].hist(
-                np_out[:, :, i].ravel(), bins=256, color=colors[i], alpha=0.7
-            )
-            axes[i + 1, 1].set_xlim([0, 255])
-            axes[i + 1, 1].set_ylim([y_min, y_max])
-            axes[i + 1, 1].set_title(f"Output {channels[i]}", fontsize=11)
-            axes[i + 1, 1].set_xlabel("Intensitas (0-255)")
-            axes[i + 1, 1].set_ylabel("Jumlah Piksel")
-            axes[i + 1, 1].grid(True, linestyle="--", alpha=0.5)
+            if i < len(channels_out):
+                data_out = np_out[:, :, i] if mode_out == "RGB" else np_out
+                axes[i + 1, 1].hist(data_out.ravel(), bins=256, color=colors_out[i], alpha=0.7)
+                axes[i + 1, 1].set_xlim([0, 255])
+                axes[i + 1, 1].set_ylim([y_min, y_max])
+                axes[i + 1, 1].set_title(f"Output {channels_out[i]}", fontsize=11)
+                axes[i + 1, 1].set_xlabel("Intensitas (0-255)")
+                axes[i + 1, 1].set_ylabel("Jumlah Piksel")
+                axes[i + 1, 1].grid(True, linestyle="--", alpha=0.5)
+            else:
+                axes[i + 1, 1].axis("off")
 
         # --- Judul besar & layout ---
-        fig.suptitle("Histogram Input vs Output (RGB)", fontsize=16, fontweight="bold")
-        fig.tight_layout(rect=[0, 0, 1, 0.96])  # beri ruang untuk judul di atas
+        fig.suptitle("Histogram Input vs Output", fontsize=16, fontweight="bold")
+        fig.tight_layout(rect=[0, 0, 1, 0.96])
 
         # --- Tampilkan di dialog PyQt5 ---
         dialog = QDialog()
         dialog.setWindowTitle("Histogram Input-Output")
         layout = QVBoxLayout(dialog)
         layout.addWidget(FigureCanvas(fig))
-        dialog.resize(1000, 1000)
+        dialog.resize(1000, 800)
         dialog.exec_()
 
     # ---------- REGION GROWING ----------
