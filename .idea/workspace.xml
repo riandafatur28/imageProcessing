@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1a83b206-ca0c-4781-a053-58af24013a87" name="Changes" comment="memperbaiki histograminput vs output">
+    <list default="true" id="1a83b206-ca0c-4781-a053-58af24013a87" name="Changes" comment="memperbaiki dilation dan erosion">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/image_processor.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/image_processor.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ui/tugasBuQon_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/tugasBuQon_ui.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -206,7 +207,8 @@
       <workItem from="1758632870233" duration="624000" />
       <workItem from="1758672352095" duration="6182000" />
       <workItem from="1758684494572" duration="722000" />
-      <workItem from="1758695403297" duration="437000" />
+      <workItem from="1758695403297" duration="3597000" />
+      <workItem from="1758710035920" duration="4350000" />
     </task>
     <task id="LOCAL-00001" summary="terselamatkannn">
       <option name="closed" value="true" />
@@ -288,7 +290,15 @@
       <option name="project" value="LOCAL" />
       <updated>1758677864074</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="memperbaiki dilation dan erosion">
+      <option name="closed" value="true" />
+      <created>1758695942060</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1758695942060</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -304,10 +314,11 @@
     <MESSAGE value="menambahkan qbox tentang#2" />
     <MESSAGE value="menambahkan arithmetic" />
     <MESSAGE value="memperbaiki histograminput vs output" />
-    <option name="LAST_COMMIT_MESSAGE" value="memperbaiki histograminput vs output" />
+    <MESSAGE value="memperbaiki dilation dan erosion" />
+    <option name="LAST_COMMIT_MESSAGE" value="memperbaiki dilation dan erosion" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/tugasBuQon$image_processor.coverage" NAME="image_processor Coverage Results" MODIFIED="1758185934596" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/core" />
-    <SUITE FILE_PATH="coverage/tugasBuQon$main.coverage" NAME="main Coverage Results" MODIFIED="1758677897300" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/tugasBuQon$main.coverage" NAME="main Coverage Results" MODIFIED="1758710042248" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

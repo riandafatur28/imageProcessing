@@ -5,6 +5,8 @@ from PyQt5.QtWidgets import QVBoxLayout, QDialog, QMessageBox
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PIL import ImageFilter, ImageChops
+from PIL import Image
+from PIL import ImageQt
 
 class ImageProcessor:
     # ================= RGB Colors =================

@@ -47,9 +47,6 @@ class SliderDialog(QDialog):
         self.value = val
         self.label.setText(f"Value: {self.value}")
 
-
-
-
 # ---------- Average Filter Dialog ----------
 class AverageFilterDialog(QDialog):
     def __init__(self, title="Average Filter", min_val=3, max_val=15, init_val=3):
@@ -182,6 +179,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
+        self.scale_factor = 1.0
 
         ## Buat action Tentang langsung
         self.actionTentang = QtWidgets.QAction("Tentang", self)
@@ -598,34 +596,71 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif op == "flip_v":
             self.processed_image = img.transpose(Image.FLIP_TOP_BOTTOM)
 
+
         elif op == "rotate":
-            dlg = SliderDialog("Rotate (derajat)", -180, 180, 0)
+            dlg = SliderDialog("Rotate (derajat)", -360, 360, 0)
+
             if dlg.exec_():
-                self.processed_image = img.rotate(dlg.value, expand=True)
+                angle = dlg.value
+
+                # kalau RGBA pakai transparan, kalau RGB pakai putih
+                fill = (255, 255, 255, 0) if img.mode == "RGBA" else (255, 255, 255)
+                self.processed_image = img.rotate(angle, expand=True, fillcolor=fill)
+
 
         elif op == "translate":
-            dlg_dx = SliderDialog("Geser Horizontal (px)", -2000, 2000, 0)
-            dlg_dy = SliderDialog("Geser Vertikal (px)", -2000, 2000, 0)
+            dlg_dx = SliderDialog("Geser Horizontal (px)", -360, 360, 0)
+            dlg_dy = SliderDialog("Geser Vertikal (px)", -360, 360, 0)
             if dlg_dx.exec_() and dlg_dy.exec_():
                 dx, dy = dlg_dx.value, dlg_dy.value
                 w, h = img.size
-                bg = Image.new("RGB", (w, h), (255, 255, 255))
-                bg.paste(img, (dx, dy))
+
+                # hitung ukuran kanvas baru (biar gambar ga terpotong)
+                new_w = w + abs(dx)
+                new_h = h + abs(dy)
+
+                # buat background (kalau RGBA → transparan, kalau RGB → putih)
+                if img.mode == "RGBA":
+                    bg = Image.new("RGBA", (new_w, new_h), (255, 255, 255, 0))
+
+                else:
+                    bg = Image.new("RGB", (new_w, new_h), (255, 255, 255))
+
+                # posisi tempel gambar
+                paste_x = max(dx, 0)
+                paste_y = max(dy, 0)
+
+                # tempelkan gambar
+                if img.mode == "RGBA":
+                    bg.paste(img, (paste_x, paste_y), img)
+
+                else:
+                    bg.paste(img, (paste_x, paste_y))
                 self.processed_image = bg
 
+
+
+
         elif op == "zoom_in":
-            dlg = SliderDialog("Zoom (%)", 10, 400, 150)
+            dlg = SliderDialog("Zoom In (%)", 10, 200, 50)
             if dlg.exec_():
-                factor = dlg.value / 100.0
+                factor = 1.0 + (dlg.value / 100.0)  # contoh 50 → 1.5x
+                self.scale_factor *= factor  # update skala total
                 w, h = img.size
-                self.processed_image = img.resize((int(w * factor), int(h * factor)), Image.LANCZOS)
+                new_w = int(w * self.scale_factor)
+                new_h = int(h * self.scale_factor)
+                self.processed_image = img.resize((new_w, new_h), Image.LANCZOS)
 
         elif op == "zoom_out":
-            dlg = SliderDialog("Zoom (%)", 10, 400, 50)
+            dlg = SliderDialog("Zoom Out (%)", 10, 90, 50)
             if dlg.exec_():
-                factor = dlg.value / 100.0
+                factor = 1.0 - (dlg.value / 100.0)  # contoh 50 → 0.5x
+                self.scale_factor *= factor
+                self.scale_factor = max(0.1, self.scale_factor)  # jangan terlalu kecil
                 w, h = img.size
-                self.processed_image = img.resize((int(w * factor), int(h * factor)), Image.LANCZOS)
+                new_w = int(w * self.scale_factor)
+                new_h = int(h * self.scale_factor)
+                self.processed_image = img.resize((new_w, new_h), Image.LANCZOS)
 
         elif op == "crop":
             QMessageBox.information(self, "Crop", "Drag pada gambar kiri untuk memilih area crop.")
