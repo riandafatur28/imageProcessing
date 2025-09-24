@@ -3,6 +3,7 @@ import sys
 import cv2
 import numpy as np
 from PIL import Image, ImageChops
+from core.arithmetic_dialog import ArithmeticDialog
 
 # PyQt5
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -169,46 +170,12 @@ class CropLabel(QLabel):
             self.selection_made.emit(rect)
         super().mouseReleaseEvent(event)
 
-
-# ---------- Aritmetical Operation Window ----------
-class ArithmeticDialog(QDialog):
-    def __init__(self, img1, img2, operation, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(f"Aritmetical Operation - {operation}")
-
-        # Lakukan operasi
-        if operation == "add":
-            result = ImageChops.add(img1, img2)
-        elif operation == "subtract":
-            result = ImageChops.subtract(img1, img2)
-        elif operation == "multiply":
-            result = ImageChops.multiply(img1, img2)
+    def apply_arithmetic(self, operation):
+        if self.original_image and self.another_image:
+            dialog = ArithmeticDialog(self.original_image, self.another_image, operation, self)
+            dialog.exec_()
         else:
-            result = img1
-
-        # Konversi PIL → QImage
-        def pil2pixmap(im):
-            im = im.convert("RGB")
-            data = im.tobytes("raw", "RGB")
-            qimg = QImage(data, im.size[0], im.size[1], QImage.Format_RGB888)
-            return QPixmap.fromImage(qimg)
-
-        pix1 = pil2pixmap(img1)
-        pix2 = pil2pixmap(img2)
-        pix3 = pil2pixmap(result)
-
-        # Layout 3 kolom
-        layout = QHBoxLayout()
-        for title, pix in [("Input 1", pix1), ("Input 2", pix2), ("Output", pix3)]:
-            vbox = QVBoxLayout()
-            label_title = QLabel(title)
-            label_img = QLabel()
-            label_img.setPixmap(pix.scaled(200, 200))
-            vbox.addWidget(label_title)
-            vbox.addWidget(label_img)
-            layout.addLayout(vbox)
-
-        self.setLayout(layout)
+            print("⚠️ Harap buka dua gambar terlebih dahulu.")
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -233,6 +200,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionK_Means = QAction("K-Means", self)
         self.actionWatershed = QAction("Watershed", self)
         self.actionRegion_Growing = QAction("Region Growing", self)
+
+        self.menuAritmetical = self.menubar.addMenu("Aritmetical Operation")
+
+        open_action = QAction("Open Arithmetic Dialog", self)
+        open_action.triggered.connect(self.open_arithmetic)
+        self.menuAritmetical.addAction(open_action)
 
         # Masukkan ke menu
         seg_menu.addAction(self.actionGlobal_Thresholding)
@@ -947,6 +920,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Tampilkan lagi ke label kanan
         self.show_image(Image.fromarray(cv2.cvtColor(adjusted, cv2.COLOR_BGR2RGB)), self.image_label_right)
 
+    def open_arithmetic(self):
+        from core.arithmetic_dialog import ArithmeticDialog
+        dialog = ArithmeticDialog(self)
+        dialog.exec_()
+
     # ========== SLOT UNTUK CROP ================================
     # ============================================================
     def on_crop_selection(self, rect: QRect):
@@ -1000,6 +978,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.show_image(self.processed_image, self.image_label_right)
 
         self._crop_mode = False
+
+
 
 # ---------- Main ----------
 def main():
