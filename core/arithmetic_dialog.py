@@ -9,7 +9,7 @@ class ArithmeticDialog(QDialog):
         super().__init__(parent)
 
         self.setWindowTitle("Aritmetical Operation")
-        self.resize(1200, 800)
+        self.resize(1000, 700)
 
         # Layout utama
         layout = QVBoxLayout()
