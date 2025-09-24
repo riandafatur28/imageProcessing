@@ -216,14 +216,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
-        # Hapus menuTentang yang lama dari menubar
-        # Tambahkan langsung QAction
+        # Buat action Tentang langsung
         self.actionTentang = QtWidgets.QAction("Tentang", self)
-        self.menubar.addAction(self.actionTentang)
         self.actionTentang.triggered.connect(self.show_about_popup)
 
-        # Hubungkan menuTentang supaya langsung muncul pop-up
-        self.menuTentang.aboutToShow.connect(self.show_about_popup)
+        # Tambahkan ke menubar
+        self.menubar.addAction(self.actionTentang)
 
         # ---------- Tambah Menu Segmentation ----------
         seg_menu = self.menuBar().addMenu("Segmentation")
@@ -427,7 +425,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         safe_connect("actionBuka", self.open_image)
         safe_connect("actionSimpan_sebagai", self.save_image_as)
         safe_connect("actionKeluar", self.close)
-
 
         # Aritmetic Operational
         safe_connect("actionAdd", lambda: self.apply_arithmetic("add"))

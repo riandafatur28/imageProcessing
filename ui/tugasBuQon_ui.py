@@ -286,7 +286,7 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menuView.menuAction())
         self.menubar.addAction(self.menuColors.menuAction())
-        self.menubar.addAction(self.menuTentang.menuAction())
+        # self.menubar.addAction(self.menuTentang.menuAction())
         self.menubar.addAction(self.menuImage_Processing.menuAction())
         # self.menubar.addAction(self.menuSegmentation.menuAction())
         self.menubar.addAction(self.menuAritmetical_Operation.menuAction())
