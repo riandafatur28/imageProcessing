@@ -1,17 +1,21 @@
-# main.py (PERBAIKAN LENGKAP)
+# main.py – Import PyQt5 yang sudah diperbaiki
 import sys
-import math
-
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageChops
+
+# PyQt5
+from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt, QRect, QPoint, pyqtSignal, QSize, QEvent
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QLabel, QVBoxLayout, QFileDialog,
-    QMessageBox, QDialog, QSlider, QPushButton, QAction, QWidget, QLineEdit,
-    QHBoxLayout, QCheckBox, QRubberBand, QGraphicsScene, QGraphicsView, QInputDialog
+    QMessageBox, QDialog, QSlider, QPushButton, QAction, QWidget,
+    QLineEdit, QHBoxLayout, QCheckBox, QRubberBand, QGraphicsScene,
+    QGraphicsView, QInputDialog
 )
 from PyQt5.QtGui import QPixmap, QImage, QWheelEvent
+
+# Module internal
 from core.image_processor import ImageProcessor
 from ui.tugasBuQon_ui import Ui_MainWindow
 
@@ -167,44 +171,59 @@ class CropLabel(QLabel):
 
 
 # ---------- Aritmetical Operation Window ----------
-class AritmeticalWindow(QDialog):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Aritmetical Operation")
-        self.resize(400, 200)
+class ArithmeticDialog(QDialog):
+    def __init__(self, img1, img2, operation, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Aritmetical Operation - {operation}")
 
-        layout = QVBoxLayout(self)
-        input_layout = QHBoxLayout()
-        self.input1 = QLineEdit()
-        self.input1.setPlaceholderText("Input 1")
-        self.input2 = QLineEdit()
-        self.input2.setPlaceholderText("Input 2")
-        input_layout.addWidget(self.input1)
-        input_layout.addWidget(self.input2)
-        layout.addLayout(input_layout)
+        # Lakukan operasi
+        if operation == "add":
+            result = ImageChops.add(img1, img2)
+        elif operation == "subtract":
+            result = ImageChops.subtract(img1, img2)
+        elif operation == "multiply":
+            result = ImageChops.multiply(img1, img2)
+        else:
+            result = img1
 
-        self.output = QLineEdit()
-        self.output.setReadOnly(True)
-        self.output.setPlaceholderText("Output")
-        layout.addWidget(self.output)
+        # Konversi PIL → QImage
+        def pil2pixmap(im):
+            im = im.convert("RGB")
+            data = im.tobytes("raw", "RGB")
+            qimg = QImage(data, im.size[0], im.size[1], QImage.Format_RGB888)
+            return QPixmap.fromImage(qimg)
 
-        btn_add = QPushButton("Add")
-        btn_add.clicked.connect(self.add_values)
-        layout.addWidget(btn_add)
+        pix1 = pil2pixmap(img1)
+        pix2 = pil2pixmap(img2)
+        pix3 = pil2pixmap(result)
 
-    def add_values(self):
-        try:
-            a = float(self.input1.text())
-            b = float(self.input2.text())
-            self.output.setText(str(a + b))
-        except ValueError:
-            QMessageBox.warning(self, "Error", "Masukkan angka yang valid")
+        # Layout 3 kolom
+        layout = QHBoxLayout()
+        for title, pix in [("Input 1", pix1), ("Input 2", pix2), ("Output", pix3)]:
+            vbox = QVBoxLayout()
+            label_title = QLabel(title)
+            label_img = QLabel()
+            label_img.setPixmap(pix.scaled(200, 200))
+            vbox.addWidget(label_title)
+            vbox.addWidget(label_img)
+            layout.addLayout(vbox)
+
+        self.setLayout(layout)
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
+
+        # Hapus menuTentang yang lama dari menubar
+        # Tambahkan langsung QAction
+        self.actionTentang = QtWidgets.QAction("Tentang", self)
+        self.menubar.addAction(self.actionTentang)
+        self.actionTentang.triggered.connect(self.show_about_popup)
+
+        # Hubungkan menuTentang supaya langsung muncul pop-up
+        self.menuTentang.aboutToShow.connect(self.show_about_popup)
 
         # ---------- Tambah Menu Segmentation ----------
         seg_menu = self.menuBar().addMenu("Segmentation")
@@ -297,6 +316,48 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # ---------- Menu / Actions ----------
         self.connect_actions()
 
+    def show_about_popup(self):
+        # Membuat QMessageBox kustom
+        msg = QtWidgets.QMessageBox(self)
+        msg.setWindowTitle("Tentang Aplikasi")
+        msg.setIcon(QtWidgets.QMessageBox.NoIcon)
+
+        # Membuat layout custom
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout()
+
+        label_title = QtWidgets.QLabel("Praktikum Workshop Pengolahan Citra Vision")
+        label_title.setAlignment(QtCore.Qt.AlignCenter)
+        label_title.setStyleSheet("font-size: 28pt; font-weight: bold;")
+
+        label_version = QtWidgets.QLabel("V 1.0")
+        label_version.setAlignment(QtCore.Qt.AlignCenter)
+        label_version.setStyleSheet("font-size: 16pt;")
+
+        label_creator = QtWidgets.QLabel("Rianda Faturrahman")
+        label_creator.setAlignment(QtCore.Qt.AlignCenter)
+        label_creator.setStyleSheet("font-size: 16pt;")
+
+        layout.addWidget(label_title)
+        layout.addWidget(label_version)
+        layout.addWidget(label_creator)
+
+        widget.setLayout(layout)
+        msg.layout().addWidget(widget)
+
+        # Set ukuran lebar dan tinggi popup
+        msg.setMinimumWidth(1200)  # lebar
+        msg.setMinimumHeight(600)  # tinggi
+
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        msg.exec_()
+
+    # Aritmetic Operational
+    def apply_arithmetic(self, operation):
+        if self.original_image and self.another_image:
+            dialog = ArithmeticDialog(self.original_image, self.another_image, operation, self)
+            dialog.exec_()
+
     # Show All Segmentation
     def show_all_segmentations(self):
         if self.original_image is None:
@@ -366,6 +427,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         safe_connect("actionBuka", self.open_image)
         safe_connect("actionSimpan_sebagai", self.save_image_as)
         safe_connect("actionKeluar", self.close)
+
+
+        # Aritmetic Operational
+        safe_connect("actionAdd", lambda: self.apply_arithmetic("add"))
+        safe_connect("actionSubtract", lambda: self.apply_arithmetic("subtract"))
+        safe_connect("actionMultiply", lambda: self.apply_arithmetic("multiply"))
 
         # View menu
         safe_connect("actionFlip_H", lambda: self.view_operation("flip_h"))
