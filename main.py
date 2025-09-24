@@ -20,7 +20,6 @@ from PyQt5.QtGui import QPixmap, QImage, QWheelEvent
 from core.image_processor import ImageProcessor
 from ui.tugasBuQon_ui import Ui_MainWindow
 
-
 # ---------- Slider Dialog ----------
 class SliderDialog(QDialog):
     def __init__(self, title, min_val, max_val, init_val):
@@ -87,7 +86,6 @@ class AverageFilterDialog(QDialog):
         self.keep_color = self.checkbox.isChecked()
         super().accept()
 
-
 # ---------- PIL → QImage ----------
 def pil2qimage(pil_img):
     """Konversi PIL.Image ke QImage (menghitung bytesPerLine dengan benar)."""
@@ -123,7 +121,6 @@ def pil2qimage(pil_img):
         data = img.tobytes("raw", "RGB")
         bytes_per_line = 3 * w
         return QImage(data, w, h, bytes_per_line, QImage.Format_RGB888)
-
 
 # ---------- Crop-capable QLabel (rubber-band selection) ----------
 class CropLabel(QLabel):
@@ -174,7 +171,6 @@ class CropLabel(QLabel):
         else:
             print("⚠️ Harap buka dua gambar terlebih dahulu.")
 
-
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
@@ -198,7 +194,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionK_Means = QAction("K-Means", self)
         self.actionWatershed = QAction("Watershed", self)
         self.actionRegion_Growing = QAction("Region Growing", self)
-
         self.menuAritmetical = self.menubar.addMenu("Aritmetical Operation")
 
         open_action = QAction("Open Arithmetic Dialog", self)
@@ -286,40 +281,65 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.connect_actions()
 
     def show_about_popup(self):
-        # Membuat QMessageBox kustom
-        msg = QtWidgets.QMessageBox(self)
-        msg.setWindowTitle("Tentang Aplikasi")
-        msg.setIcon(QtWidgets.QMessageBox.NoIcon)
+        # Bikin QDialog custom
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle("Tentang Aplikasi")
+        dlg.resize(600, 400)  # ukuran popup lebih besar
 
-        # Membuat layout custom
-        widget = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout(dlg)
+        layout.setSpacing(15)  # kasih jarak antar elemen
 
+        # Judul utama
         label_title = QtWidgets.QLabel("Praktikum Workshop Pengolahan Citra Vision")
         label_title.setAlignment(QtCore.Qt.AlignCenter)
-        label_title.setStyleSheet("font-size: 28pt; font-weight: bold;")
+        label_title.setStyleSheet("font-size: 20pt; font-weight: bold;")
 
-        label_version = QtWidgets.QLabel("V 1.0")
+        # Sub Judul
+        label_judul = QtWidgets.QLabel("Aplikasi Image Processing Sederhana")
+        label_judul.setAlignment(QtCore.Qt.AlignCenter)
+        label_judul.setStyleSheet("font-size: 16pt; font-style: italic;")
+
+        # Versi
+        label_version = QtWidgets.QLabel("Versi 1.0")
         label_version.setAlignment(QtCore.Qt.AlignCenter)
-        label_version.setStyleSheet("font-size: 16pt;")
+        label_version.setStyleSheet("font-size: 14pt;")
 
+        # Creator
         label_creator = QtWidgets.QLabel("Rianda Faturrahman")
         label_creator.setAlignment(QtCore.Qt.AlignCenter)
-        label_creator.setStyleSheet("font-size: 16pt;")
+        label_creator.setStyleSheet("font-size: 14pt;")
 
+        # NIM
+        label_nim = QtWidgets.QLabel("E41231605")
+        label_nim.setAlignment(QtCore.Qt.AlignCenter)
+        label_nim.setStyleSheet("font-size: 14pt;")
+
+        # Tambahkan semua ke layout
         layout.addWidget(label_title)
+        layout.addWidget(label_judul)
         layout.addWidget(label_version)
         layout.addWidget(label_creator)
+        layout.addWidget(label_nim)
 
-        widget.setLayout(layout)
-        msg.layout().addWidget(widget)
+        # Tombol OK
+        btn_ok = QtWidgets.QPushButton("OK")
+        btn_ok.setFixedHeight(40)
+        btn_ok.setStyleSheet("""
+            QPushButton {
+                background-color: #007BFF;
+                color: white;
+                font-size: 14pt;
+                border-radius: 8px;
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background-color: #0056b3;
+            }
+        """)
+        btn_ok.clicked.connect(dlg.accept)
+        layout.addWidget(btn_ok, alignment=QtCore.Qt.AlignCenter)
 
-        # Set ukuran lebar dan tinggi popup
-        msg.setMinimumWidth(1200)  # lebar
-        msg.setMinimumHeight(600)  # tinggi
-
-        msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
-        msg.exec_()
+        dlg.exec_()
 
     # Aritmetic Operational
     def apply_arithmetic(self, operation):
@@ -493,16 +513,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         qimage = pil2qimage(pil_img)
         if qimage is None:
             return
-        pixmap = QPixmap.fromImage(qimage)
-        sw, sh = label.width(), label.height()
-        w, h = pixmap.width(), pixmap.height()
-        if w == 0 or h == 0 or sw == 0 or sh == 0:
-            return
-        scale = min(sw / w, sh / h)
-        new_w, new_h = int(w * scale), int(h * scale)
-        scaled = pixmap.scaled(new_w, new_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        label.setPixmap(scaled)
-        label.setAlignment(Qt.AlignCenter)
+            pixmap = QPixmap.fromImage(qimage)
+            sw, sh = label.width(), label.height()
+            w, h = pixmap.width(), pixmap.height()
+            if w == 0 or h == 0 or sw == 0 or sh == 0:
+                return
+            scale = min(sw / w, sh / h)
+            new_w, new_h = int(w * scale), int(h * scale)
+            scaled = pixmap.scaled(new_w, new_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            label.setPixmap(scaled)
+            label.setAlignment(Qt.AlignCenter)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -596,7 +616,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif op == "flip_v":
             self.processed_image = img.transpose(Image.FLIP_TOP_BOTTOM)
 
-
         elif op == "rotate":
             dlg = SliderDialog("Rotate (derajat)", -360, 360, 0)
 
@@ -606,7 +625,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 # kalau RGBA pakai transparan, kalau RGB pakai putih
                 fill = (255, 255, 255, 0) if img.mode == "RGBA" else (255, 255, 255)
                 self.processed_image = img.rotate(angle, expand=True, fillcolor=fill)
-
 
         elif op == "translate":
             dlg_dx = SliderDialog("Geser Horizontal (px)", -360, 360, 0)
@@ -637,9 +655,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 else:
                     bg.paste(img, (paste_x, paste_y))
                 self.processed_image = bg
-
-
-
 
         elif op == "zoom_in":
             dlg = SliderDialog("Zoom In (%)", 10, 200, 50)
@@ -930,7 +945,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         QMessageBox.information(self, "About", "Aplikasi Image Processing Sederhana\nDibuat dengan PyQt5 + PIL\n")
 
     # ============================================================
-
     def apply_brightness_contrast(self, brightness=30, contrast=30):
         if self.original_image is None:
             return
@@ -1013,8 +1027,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.show_image(self.processed_image, self.image_label_right)
 
         self._crop_mode = False
-
-
 
 # ---------- Main ----------
 def main():

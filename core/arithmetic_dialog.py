@@ -1,6 +1,7 @@
 # core/arithmetic_dialog.py
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QLabel, QTextEdit, QPushButton, QGridLayout, QMessageBox
+    QDialog, QVBoxLayout, QLabel, QTextEdit, QPushButton,
+    QGridLayout, QMessageBox, QComboBox
 )
 
 class ArithmeticDialog(QDialog):
@@ -8,7 +9,7 @@ class ArithmeticDialog(QDialog):
         super().__init__(parent)
 
         self.setWindowTitle("Aritmetical Operation")
-        self.setFixedSize(600, 300)
+        self.resize(1200, 800)
 
         # Layout utama
         layout = QVBoxLayout()
@@ -37,8 +38,32 @@ class ArithmeticDialog(QDialog):
 
         layout.addLayout(grid)
 
+        # Dropdown untuk memilih operasi
+        self.cmb_operasi = QComboBox()
+        self.cmb_operasi.addItems([
+            "Penjumlahan (+)",
+            "Pengurangan (-)",
+            "Perkalian (×)",
+            "Pembagian (÷)"
+        ])
+        self.cmb_operasi.setMinimumHeight(60)  # biar dropdown lebih tinggi
+        layout.addWidget(self.cmb_operasi)
+
         # Tombol Hitung
-        self.btn_hitung = QPushButton("Hitung Penjumlahan")
+        self.btn_hitung = QPushButton("Hitung")
+        self.btn_hitung.setMinimumHeight(60)  # biar tombol lebih tinggi
+        self.btn_hitung.setStyleSheet("""
+            QPushButton {
+                background-color: #007BFF;   /* biru */
+                color: white;               /* tulisan putih */
+                font-size: 16px;            /* biar font lebih besar */
+                border-radius: 8px;         /* sudut membulat */
+                padding: 10px;
+            }
+            QPushButton:hover {
+                background-color: #0056b3;  /* biru lebih gelap saat hover */
+            }
+        """)
         self.btn_hitung.clicked.connect(self.hitung)
         layout.addWidget(self.btn_hitung)
 
@@ -48,7 +73,23 @@ class ArithmeticDialog(QDialog):
         try:
             a = float(self.txt_input1.toPlainText())
             b = float(self.txt_input2.toPlainText())
-            hasil = a + b
+            op = self.cmb_operasi.currentText()
+
+            if "Penjumlahan" in op:
+                hasil = a + b
+            elif "Pengurangan" in op:
+                hasil = a - b
+            elif "Perkalian" in op:
+                hasil = a * b
+            elif "Pembagian" in op:
+                if b == 0:
+                    QMessageBox.warning(self, "Error", "Tidak bisa dibagi dengan nol")
+                    return
+                hasil = a / b
+            else:
+                hasil = "Operasi tidak dikenal"
+
             self.txt_output.setPlainText(str(hasil))
+
         except ValueError:
             QMessageBox.warning(self, "Error", "Masukkan angka valid di Input 1 dan Input 2")
