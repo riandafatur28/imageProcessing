@@ -165,11 +165,15 @@ class CropLabel(QLabel):
         super().mouseReleaseEvent(event)
 
     def apply_arithmetic(self, operation):
-        if self.original_image and self.another_image:
-            dialog = ArithmeticDialog(self.original_image, self.another_image, operation, self)
+        img1 = self.get_current_image()  # 🔑 ambil gambar aktif (original/processed)
+        img2 = self.another_image  # gambar kedua tetap
+
+        if img1 and img2:
+            dialog = ArithmeticDialog(img1, img2, operation, self)
             dialog.exec_()
         else:
             print("⚠️ Harap buka dua gambar terlebih dahulu.")
+
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -343,13 +347,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # Aritmetic Operational
     def apply_arithmetic(self, operation):
-        if self.original_image and self.another_image:
-            dialog = ArithmeticDialog(self.original_image, self.another_image, operation, self)
+        img1 = self.get_current_image()  # ✅ ambil gambar aktif (processed kalau ada)
+        img2 = self.another_image
+
+        if img1 and img2:
+            dialog = ArithmeticDialog(img1, img2, operation, self)
             dialog.exec_()
+        else:
+            print("⚠️ Harap buka dua gambar terlebih dahulu.")
 
     # Show All Segmentation
     def show_all_segmentations(self):
-        if self.original_image is None:
+        img = self.get_current_image()  # ✅ ambil gambar terbaru
+        if img is None:
             QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
             return
 
@@ -367,11 +377,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if func:
                 # Atur parameter default jika dibutuhkan
                 if method == "kmeans_clustering":
-                    seg_results[name] = func(self.original_image, K=3)
+                    seg_results[name] = func(img, K=3)
                 elif method == "region_growing":
-                    seg_results[name] = func(self.original_image, seed_point=(50, 50), threshold=15)
+                    seg_results[name] = func(img, seed_point=(50, 50), threshold=15)
                 else:
-                    seg_results[name] = func(self.original_image)
+                    seg_results[name] = func(img)
+
+        # misalnya nanti ditampilkan di tab/grid
+        # self.show_segmentation_results(seg_results)
 
         # Plot semua hasil
         import matplotlib.pyplot as plt
@@ -381,15 +394,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Original
         plt.subplot(rows, cols, 1)
-        if self.original_image.mode == "L":
-            plt.imshow(self.original_image, cmap="gray")
+        img = self.get_current_image()  # ✅ ambil gambar aktif (processed kalau ada)
+        if img.mode == "L":
+            plt.imshow(img, cmap="gray")
         else:
-            plt.imshow(self.original_image)
+            plt.imshow(img)
         plt.title("Original")
         plt.axis("off")
 
         # Segmentasi
         for i, (title, img) in enumerate(seg_results.items(), start=2):
+            if img is None:
+                continue  # skip kalau hasil segmentasi kosong
+
             plt.subplot(rows, cols, i)
             if img.mode == "L":
                 plt.imshow(img, cmap="gray")
@@ -468,7 +485,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for i in range(1, 8):
             act_name = f"action{i}_Bit"
             if hasattr(self, act_name):
-                getattr(self, act_name).triggered.connect(lambda checked=False, n=i: self.apply_bit_depth(n))
+                getattr(self, act_name).triggered.connect(
+                    lambda checked=False, n=i: self.apply_bit_depth(n)
+                )
 
         # Histogram / Fuzzy
         safe_connect("actionHistogram_Equalization", self.histogram_equalization)
@@ -512,24 +531,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def show_image(self, pil_img, label):
         qimage = pil2qimage(pil_img)
         if qimage is None:
+
             return
-            pixmap = QPixmap.fromImage(qimage)
-            sw, sh = label.width(), label.height()
-            w, h = pixmap.width(), pixmap.height()
-            if w == 0 or h == 0 or sw == 0 or sh == 0:
-                return
-            scale = min(sw / w, sh / h)
-            new_w, new_h = int(w * scale), int(h * scale)
-            scaled = pixmap.scaled(new_w, new_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            label.setPixmap(scaled)
-            label.setAlignment(Qt.AlignCenter)
+        pixmap = QPixmap.fromImage(qimage)
+        sw, sh = label.width(), label.height()
+        w, h = pixmap.width(), pixmap.height()
+        if w == 0 or h == 0 or sw == 0 or sh == 0:
+            return
+
+        scale = min(sw / w, sh / h)
+        new_w, new_h = int(w * scale), int(h * scale)
+        scaled = pixmap.scaled(new_w, new_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        label.setPixmap(scaled)
+        label.setAlignment(Qt.AlignCenter)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        if self.original_image:
-            self.show_image(self.original_image, self.image_label_left)
         if self.processed_image:
+            # tampilkan hasil edit terbaru di kiri & kanan
+            self.show_image(self.processed_image, self.image_label_left)
             self.show_image(self.processed_image, self.image_label_right)
+        elif self.original_image:
+            # kalau belum ada edit, tampilkan gambar asli di kiri & kanan
+            self.show_image(self.original_image, self.image_label_left)
+            self.show_image(self.original_image, self.image_label_right)
 
     # ============================================================
     # ========== FILE ============================================
@@ -545,6 +570,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.show_image(self.original_image, self.image_label_left)
         self.image_label_right.clear()
 
+    def get_current_image(self):
+        """Ambil gambar aktif: pakai processed_image jika ada, kalau tidak original_image."""
+        return self.processed_image if self.processed_image else self.original_image
+
     def save_image_as(self):
         if self.processed_image is None:
             QMessageBox.warning(self, "Warning", "Tidak ada gambar hasil!")
@@ -555,48 +584,54 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # Morpologi
     def apply_morphology(self, operation=None, kernel_type="Square", ksize=3):
-        if self.original_image:
-            f = getattr(self.processor, "morphology", None)
-            if f:
-                # Kalau operation None → tampilkan dialog pilihan
-                if operation is None:
-                    from PyQt5.QtWidgets import QInputDialog
-                    options = [
-                        "Erosion - Square 3",
-                        "Erosion - Square 5",
-                        "Erosion - Cross 3",
-                        "Dilation - Square 3",
-                        "Dilation - Square 5",
-                        "Dilation - Cross 3",
-                        "Opening - Square 9",
-                        "Closing - Square 9"
-                    ]
-                    item, ok = QInputDialog.getItem(self, "Pilih Operasi Morfologi", "Operasi:", options, 0, False)
-                    if not ok:
-                        return
+        img = self.get_current_image()  # ✅ ambil gambar aktif (processed kalau ada)
+        if img is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
 
-                    # mapping string ke parameter
-                    if "Erosion" in item:
-                        operation = "Erosion"
-                    elif "Dilation" in item:
-                        operation = "Dilation"
-                    elif "Opening" in item:
-                        operation = "Opening"
-                    elif "Closing" in item:
-                        operation = "Closing"
+        f = getattr(self.processor, "morphology", None)
+        if not f:
+            return
 
-                    if "Square 3" in item:
-                        kernel_type, ksize = "Square", 3
-                    elif "Square 5" in item:
-                        kernel_type, ksize = "Square", 5
-                    elif "Cross 3" in item:
-                        kernel_type, ksize = "Cross", 3
-                    elif "Square 9" in item:
-                        kernel_type, ksize = "Square", 9
+        # Kalau operation None → tampilkan dialog pilihan
+        if operation is None:
+            from PyQt5.QtWidgets import QInputDialog
+            options = [
+                "Erosion - Square 3",
+                "Erosion - Square 5",
+                "Erosion - Cross 3",
+                "Dilation - Square 3",
+                "Dilation - Square 5",
+                "Dilation - Cross 3",
+                "Opening - Square 9",
+                "Closing - Square 9"
+            ]
+            item, ok = QInputDialog.getItem(self, "Pilih Operasi Morfologi", "Operasi:", options, 0, False)
+            if not ok:
+                return
 
-                # Jalankan proses morfologi
-                self.processed_image = f(self.original_image, operation, kernel_type, ksize)
-                self.show_image(self.processed_image, self.image_label_right)
+            # mapping string ke parameter
+            if "Erosion" in item:
+                operation = "Erosion"
+            elif "Dilation" in item:
+                operation = "Dilation"
+            elif "Opening" in item:
+                operation = "Opening"
+            elif "Closing" in item:
+                operation = "Closing"
+
+            if "Square 3" in item:
+                kernel_type, ksize = "Square", 3
+            elif "Square 5" in item:
+                kernel_type, ksize = "Square", 5
+            elif "Cross 3" in item:
+                kernel_type, ksize = "Cross", 3
+            elif "Square 9" in item:
+                kernel_type, ksize = "Square", 9
+
+        # Jalankan proses morfologi
+        self.processed_image = f(img, operation, kernel_type, ksize)
+        self.show_image(self.processed_image, self.image_label_right)
 
     # ---------- VIEW / TRANSFORM (lengkap) ----------
     def view_operation(self, op):
@@ -608,8 +643,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.apply_operation(op, img)
 
     def apply_operation(self, op, img):
-        self.processed_image = None
-
         if op == "flip_h":
             self.processed_image = img.transpose(Image.FLIP_LEFT_RIGHT)
 
@@ -618,10 +651,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         elif op == "rotate":
             dlg = SliderDialog("Rotate (derajat)", -360, 360, 0)
-
             if dlg.exec_():
                 angle = dlg.value
-
                 # kalau RGBA pakai transparan, kalau RGB pakai putih
                 fill = (255, 255, 255, 0) if img.mode == "RGBA" else (255, 255, 255)
                 self.processed_image = img.rotate(angle, expand=True, fillcolor=fill)
@@ -638,11 +669,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 new_h = h + abs(dy)
 
                 # buat background (kalau RGBA → transparan, kalau RGB → putih)
-                if img.mode == "RGBA":
-                    bg = Image.new("RGBA", (new_w, new_h), (255, 255, 255, 0))
-
-                else:
-                    bg = Image.new("RGB", (new_w, new_h), (255, 255, 255))
+                bg = Image.new("RGBA" if img.mode == "RGBA" else "RGB",
+                               (new_w, new_h),
+                               (255, 255, 255, 0) if img.mode == "RGBA" else (255, 255, 255))
 
                 # posisi tempel gambar
                 paste_x = max(dx, 0)
@@ -651,7 +680,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 # tempelkan gambar
                 if img.mode == "RGBA":
                     bg.paste(img, (paste_x, paste_y), img)
-
                 else:
                     bg.paste(img, (paste_x, paste_y))
                 self.processed_image = bg
@@ -659,23 +687,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif op == "zoom_in":
             dlg = SliderDialog("Zoom In (%)", 10, 200, 50)
             if dlg.exec_():
-                factor = 1.0 + (dlg.value / 100.0)  # contoh 50 → 1.5x
-                self.scale_factor *= factor  # update skala total
-                w, h = img.size
+                factor = 1.0 + (dlg.value / 100.0)
+                self.scale_factor *= factor
+                w, h = self.original_image.size  # ✅ selalu dari original untuk kualitas bagus
                 new_w = int(w * self.scale_factor)
                 new_h = int(h * self.scale_factor)
-                self.processed_image = img.resize((new_w, new_h), Image.LANCZOS)
+                self.processed_image = self.original_image.resize((new_w, new_h), Image.LANCZOS)
 
         elif op == "zoom_out":
             dlg = SliderDialog("Zoom Out (%)", 10, 90, 50)
             if dlg.exec_():
-                factor = 1.0 - (dlg.value / 100.0)  # contoh 50 → 0.5x
+                factor = 1.0 - (dlg.value / 100.0)
                 self.scale_factor *= factor
-                self.scale_factor = max(0.1, self.scale_factor)  # jangan terlalu kecil
-                w, h = img.size
+                self.scale_factor = max(0.1, self.scale_factor)
+                w, h = self.original_image.size  # ✅ resize dari original juga
                 new_w = int(w * self.scale_factor)
                 new_h = int(h * self.scale_factor)
-                self.processed_image = img.resize((new_w, new_h), Image.LANCZOS)
+                self.processed_image = self.original_image.resize((new_w, new_h), Image.LANCZOS)
 
         elif op == "crop":
             QMessageBox.information(self, "Crop", "Drag pada gambar kiri untuk memilih area crop.")
@@ -708,16 +736,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return cv2.cvtColor(np_image, cv2.COLOR_RGB2BGR)
 
     def apply_remove_bg(self):
-        if self.original_image is None:
+        # tentukan gambar sumber: hasil terakhir kalau ada, kalau tidak pakai original
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
             return
 
         # konversi ke numpy (PIL → OpenCV BGR)
-        img = self.pil_to_cv(self.original_image)
+        img = self.pil_to_cv(src_img)
 
-        import cv2
-        import numpy as np
-        from PIL import Image
-
+        # konversi ke HSV
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         # ambil warna background dari pojok kiri atas
@@ -740,8 +769,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             min(255, int(hsv_bg[2]) + v_tol)
         ], dtype=np.uint8)
 
-        # bikin mask & alpha
+        # bikin mask
         mask = cv2.inRange(hsv, lower, upper)
+        mask = cv2.medianBlur(mask, 5)  # biar halus
+
+        # bikin alpha channel (background jadi transparan)
         alpha = cv2.bitwise_not(mask)
 
         # gabungkan jadi RGBA (OpenCV pakai BGRA)
@@ -751,77 +783,106 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # konversi ke PIL supaya show_image bisa baca
         rgba_pil = Image.fromarray(cv2.cvtColor(rgba, cv2.COLOR_BGRA2RGBA))
 
+        # simpan hasil
         self.processed_image = rgba_pil
         self.show_image(self.processed_image, self.image_label_right)
 
     def wheelEvent(self, event):
-        if self.original_image is None:
+        # pilih gambar sumber → hasil terakhir kalau ada, kalau tidak original
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
             return
         if not self.image_label_left.underMouse():
             return
+
         delta = event.angleDelta().y()
         if delta == 0:
             return
+
+        # hitung faktor zoom
         self._zoom_factor *= 1.1 if delta > 0 else 0.9
         self._zoom_factor = max(0.1, min(self._zoom_factor, 5.0))
-        w, h = self.original_image.size
+
+        # resize gambar sumber
+        w, h = src_img.size
         new_size = (int(w * self._zoom_factor), int(h * self._zoom_factor))
-        self.processed_image = self.original_image.resize(new_size, Image.LANCZOS)
+        self.processed_image = src_img.resize(new_size, Image.LANCZOS)
+
+        # tampilkan hasil zoom di kanan
         self.show_image(self.processed_image, self.image_label_right)
 
     # ============================================================
     # ========== FILTERS ========================================
     # ============================================================
     def apply_by_name(self, method_name):
-        if self.original_image is None:
+        # pilih gambar sumber
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
             QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
             return
+
         func = getattr(self.processor, method_name, None)
         if func is None:
             QMessageBox.warning(self, "Error", f"Method {method_name} tidak ditemukan di ImageProcessor")
             return
+
         try:
-            result = func(self.original_image)
+            result = func(src_img)
         except TypeError:
             QMessageBox.warning(self, "Error", f"Method {method_name} memerlukan argumen khusus")
             return
+
         if result is not None:
             self.processed_image = result
             self.show_image(self.processed_image, self.image_label_right)
 
     def apply_with_slider_float(self, method_name):
-        if self.original_image is None:
+        # pilih gambar sumber
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
             QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
             return
+
         dlg = SliderDialog("Parameter (x100)", 10, 300, 150)
         if dlg.exec_():
             val = dlg.value / 100.0
             func = getattr(self.processor, method_name, None)
             if func:
-                self.processed_image = func(self.original_image, val)
+                self.processed_image = func(src_img, val)
                 self.show_image(self.processed_image, self.image_label_right)
 
     def apply_with_slider_int(self, method_name):
-        if self.original_image is None:
+        # pilih gambar sumber
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
             QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
             return
+
         dlg = SliderDialog("Parameter", 1, 100, 10)
         if dlg.exec_():
             func = getattr(self.processor, method_name, None)
             if func:
-                self.processed_image = func(self.original_image, dlg.value)
+                self.processed_image = func(src_img, dlg.value)
                 self.show_image(self.processed_image, self.image_label_right)
 
     def apply_with_slider_gamma(self, method_name):
-        if self.original_image is None:
+        # pilih gambar sumber
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
             QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
             return
+
         dlg = SliderDialog("Gamma x0.1", 1, 500, 100)
         if dlg.exec_():
             gamma = dlg.value / 10.0
             func = getattr(self.processor, method_name, None)
             if func:
-                self.processed_image = func(self.original_image, gamma)
+                self.processed_image = func(src_img, gamma)
                 self.show_image(self.processed_image, self.image_label_right)
 
     def apply_bit_depth(self, n_bits):
@@ -834,109 +895,169 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.show_image(self.processed_image, self.image_label_right)
 
     def apply_average_filter_dialog(self):
-        if self.original_image is None:
+        # pilih gambar sumber
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
             QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
             return
+
         dlg = AverageFilterDialog()
         if dlg.exec_():
             func = getattr(self.processor, "average_filter", None)
             if func:
-                self.processed_image = func(self.original_image, size=dlg.value, keep_color=dlg.keep_color)
+                self.processed_image = func(src_img, size=dlg.value, keep_color=dlg.keep_color)
                 self.show_image(self.processed_image, self.image_label_right)
 
     def apply_gaussian(self, kernel_size):
-        if self.original_image is None:
+        # pilih gambar sumber (pakai hasil terakhir kalau ada)
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
             QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
             return
+
         func = getattr(self.processor, "gaussian_blur", None)
         if func:
-            self.processed_image = func(self.original_image, kernel_size=kernel_size)
+            self.processed_image = func(src_img, kernel_size=kernel_size)
             self.show_image(self.processed_image, self.image_label_right)
 
     # ============================================================
     # ========== HISTOGRAM & FUZZY ==============================
     # ============================================================
     def histogram_equalization(self):
-        if self.original_image:
-            func = getattr(self.processor, "histogram_equalization", None)
-            if func:
-                self.processed_image = func(self.original_image)
-                self.show_image(self.processed_image, self.image_label_right)
+        # pakai hasil terakhir kalau ada, kalau belum ada pakai gambar awal
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
+
+        func = getattr(self.processor, "histogram_equalization", None)
+        if func:
+            self.processed_image = func(src_img)
+            self.show_image(self.processed_image, self.image_label_right)
 
     def fuzzy_rgb(self):
-        if self.original_image:
-            func = getattr(self.processor, "fuzzy_histogram_equalization_rgb", None)
-            if func:
-                self.processed_image = func(self.original_image)
-                self.show_image(self.processed_image, self.image_label_right)
+        # ambil hasil terakhir kalau ada, kalau belum ada pakai original
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
+
+        func = getattr(self.processor, "fuzzy_histogram_equalization_rgb", None)
+        if func:
+            self.processed_image = func(src_img)
+            self.show_image(self.processed_image, self.image_label_right)
 
     def fuzzy_grayscale(self):
-        if self.original_image:
-            func = getattr(self.processor, "fuzzy_histogram_equalization_gray", None)
-            if func:
-                self.processed_image = func(self.original_image)
-                self.show_image(self.processed_image, self.image_label_right)
+        # ambil hasil terakhir kalau ada, kalau belum ada pakai original
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
+
+        func = getattr(self.processor, "fuzzy_histogram_equalization_gray", None)
+        if func:
+            self.processed_image = func(src_img)
+            self.show_image(self.processed_image, self.image_label_right)
 
     def show_histogram_input(self):
-        if self.original_image:
-            f = getattr(self.processor, "show_histogram_input", None)
-            if f:
-                f(self.original_image)
+        # gunakan hasil terakhir jika ada, kalau tidak pakai original
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
+
+        f = getattr(self.processor, "show_histogram_input", None)
+        if f:
+            f(src_img)
 
     def show_histogram_output(self):
-        if self.processed_image:
-            f = getattr(self.processor, "show_histogram_output", None)
-            if f:
-                f(self.processed_image)
+        src_img = self.processed_image if self.processed_image else self.original_image
+
+        if src_img is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
+
+        f = getattr(self.processor, "show_histogram_output", None)
+        if f:
+            f(src_img)
 
     def show_histogram_input_output(self):
-        if self.original_image and self.processed_image:
-            f = getattr(self.processor, "show_histogram_input_output", None)
-            if f:
-                f(self.original_image, self.processed_image)
+        if self.original_image is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
+
+        img_out = self.processed_image if self.processed_image else self.original_image
+
+        f = getattr(self.processor, "show_histogram_input_output", None)
+        if f:
+            f(self.original_image, img_out)
 
     # ============================================================
     # ========== SEGMENTATION ===================================
     # ============================================================
     def apply_global_threshold(self):
-        if self.original_image:
-            f = getattr(self.processor, "global_threshold", None)
-            if f:
-                self.processed_image = f(self.original_image)
-                self.show_image(self.processed_image, self.image_label_right)
+        img = self.get_current_image()
+        if img is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
+        self.processed_image = self.processor.global_threshold(img)
+        self.show_image(self.processed_image, self.image_label_right)
 
     def apply_adaptive_threshold(self):
-        if self.original_image:
-            f = getattr(self.processor, "adaptive_threshold", None)
-            if f:
-                self.processed_image = f(self.original_image)
-                self.show_image(self.processed_image, self.image_label_right)
+        img = self.get_current_image()  # 🔑 ambil gambar aktif (processed kalau ada)
+        if img is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
+
+        f = getattr(self.processor, "adaptive_threshold", None)
+        if f:
+            self.processed_image = f(img)
+            self.show_image(self.processed_image, self.image_label_right)
 
     def apply_kmeans(self):
-        if self.original_image:
-            dlg = SliderDialog("K (clusters)", 2, 10, 3)
-            if dlg.exec_():
-                f = getattr(self.processor, "kmeans_clustering", None)
-                if f:
-                    self.processed_image = f(self.original_image, K=dlg.value)
-                    self.show_image(self.processed_image, self.image_label_right)
+        img = self.get_current_image()  # 🔑 ambil gambar aktif
+        if img is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
 
-    def apply_watershed(self):
-        if self.original_image:
-            f = getattr(self.processor, "watershed_segmentation", None)
+        dlg = SliderDialog("K (clusters)", 2, 10, 3)
+        if dlg.exec_():
+            f = getattr(self.processor, "kmeans_clustering", None)
             if f:
-                self.processed_image = f(self.original_image)
+                self.processed_image = f(img, K=dlg.value)
                 self.show_image(self.processed_image, self.image_label_right)
 
+    def apply_watershed(self):
+        img = self.get_current_image()  # 🔑 ambil gambar aktif (processed kalau ada)
+        if img is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
+
+        f = getattr(self.processor, "watershed_segmentation", None)
+        if f:
+            self.processed_image = f(img)
+            self.show_image(self.processed_image, self.image_label_right)
+
     def apply_region_growing(self):
-        if self.original_image:
-            x, ok1 = QInputDialog.getInt(self, "Seed Point", "Masukkan X:", 50, 0, 10000, 1)
-            y, ok2 = QInputDialog.getInt(self, "Seed Point", "Masukkan Y:", 50, 0, 10000, 1)
-            if ok1 and ok2:
-                f = getattr(self.processor, "region_growing", None)
-                if f:
-                    self.processed_image = f(self.original_image, seed_point=(x, y), threshold=15)
-                    self.show_image(self.processed_image, self.image_label_right)
+        img = self.get_current_image()  # 🔑 ambil gambar aktif (processed kalau ada)
+        if img is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
+            return
+
+        x, ok1 = QInputDialog.getInt(self, "Seed Point", "Masukkan X:", 50, 0, 10000, 1)
+        y, ok2 = QInputDialog.getInt(self, "Seed Point", "Masukkan Y:", 50, 0, 10000, 1)
+
+        if ok1 and ok2:
+            f = getattr(self.processor, "region_growing", None)
+            if f:
+                self.processed_image = f(img, seed_point=(x, y), threshold=15)
+                self.show_image(self.processed_image, self.image_label_right)
 
     # ============================================================
     # ========== ABOUT ===========================================
@@ -945,29 +1066,68 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         QMessageBox.information(self, "About", "Aplikasi Image Processing Sederhana\nDibuat dengan PyQt5 + PIL\n")
 
     # ============================================================
-    def apply_brightness_contrast(self, brightness=30, contrast=30):
+    def apply_brightness_contrast(self):
         if self.original_image is None:
+            QMessageBox.warning(self, "Warning", "Buka gambar dulu!")
             return
 
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QSlider, QPushButton
         import cv2
         import numpy as np
         from PIL import Image
 
-        # Convert PIL Image ke OpenCV
-        img = np.array(self.original_image.convert("RGB"))
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        # Ambil gambar terakhir
+        img_pil = self.processed_image if self.processed_image else self.original_image
 
-        # Atur brightness & contrast
-        beta = brightness  # brightness
-        alpha = contrast / 127 + 1.0  # contrast factor
+        class BrightnessContrastDialog(QDialog):
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self.setWindowTitle("Brightness & Contrast")
+                self.brightness = 30
+                self.contrast = 30
 
-        adjusted = cv2.convertScaleAbs(img, alpha=alpha, beta=beta)
+                layout = QVBoxLayout()
 
-        # Simpan hasil
-        self.processed_image = adjusted
+                layout.addWidget(QLabel("Brightness (-127 s/d 127)"))
+                self.slider_b = QSlider()
+                self.slider_b.setOrientation(Qt.Horizontal)
+                self.slider_b.setRange(-127, 127)
+                self.slider_b.setValue(self.brightness)
+                layout.addWidget(self.slider_b)
 
-        # Tampilkan lagi ke label kanan
-        self.show_image(Image.fromarray(cv2.cvtColor(adjusted, cv2.COLOR_BGR2RGB)), self.image_label_right)
+                layout.addWidget(QLabel("Contrast (0 s/d 127)"))
+                self.slider_c = QSlider()
+                self.slider_c.setOrientation(Qt.Horizontal)
+                self.slider_c.setRange(0, 127)
+                self.slider_c.setValue(self.contrast)
+                layout.addWidget(self.slider_c)
+
+                self.btn_ok = QPushButton("Apply")
+                layout.addWidget(self.btn_ok)
+                self.setLayout(layout)
+
+                self.btn_ok.clicked.connect(self.accept)
+
+        dlg = BrightnessContrastDialog()
+        if dlg.exec_():
+            self.brightness = dlg.slider_b.value()
+            self.contrast = dlg.slider_c.value()
+
+            # Convert PIL → OpenCV BGR
+            img = np.array(img_pil.convert("RGB"))
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+            # Atur brightness & contrast
+            beta = self.brightness
+            alpha = self.contrast / 127 + 1.0
+
+            adjusted = cv2.convertScaleAbs(img, alpha=alpha, beta=beta)
+
+            # Simpan hasil
+            self.processed_image = Image.fromarray(cv2.cvtColor(adjusted, cv2.COLOR_BGR2RGB))
+
+            # Tampilkan
+            self.show_image(self.processed_image, self.image_label_right)
 
     def open_arithmetic(self):
         from core.arithmetic_dialog import ArithmeticDialog
@@ -977,39 +1137,45 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # ========== SLOT UNTUK CROP ================================
     # ============================================================
     def on_crop_selection(self, rect: QRect):
-        if not self._crop_mode or self.original_image is None:
+        if not self._crop_mode:
+            return
+
+        # Ambil gambar aktif: processed_image jika ada, kalau tidak pakai original_image
+        img = self.processed_image if self.processed_image else self.original_image
+        if img is None:
             return
 
         pixmap = self.image_label_left.pixmap()
         if pixmap is None:
             return
 
-        img_w, img_h = self.original_image.size
+        img_w, img_h = img.size
         disp_w, disp_h = pixmap.width(), pixmap.height()
 
         if disp_w == 0 or disp_h == 0:
             self._crop_mode = False
             return
 
+        # Hitung skala dan offset agar crop sesuai tampilan
         label_w, label_h = self.image_label_left.width(), self.image_label_left.height()
         scale = min(label_w / img_w, label_h / img_h) if img_w and img_h else 1.0
         scaled_w, scaled_h = int(img_w * scale), int(img_h * scale)
         offset_x = (label_w - scaled_w) // 2
         offset_y = (label_h - scaled_h) // 2
 
+        # Koordinat crop di label
         rx1 = rect.left() - offset_x
         ry1 = rect.top() - offset_y
         rx2 = rect.right() - offset_x
         ry2 = rect.bottom() - offset_y
 
+        # Batasi koordinat agar tidak keluar dari label
         rx1 = max(0, min(scaled_w, rx1))
         ry1 = max(0, min(scaled_h, ry1))
         rx2 = max(0, min(scaled_w, rx2))
         ry2 = max(0, min(scaled_h, ry2))
 
-        if scaled_w == 0 or scaled_h == 0:
-            self._crop_mode = False
-            return
+        # Konversi ke koordinat asli gambar
         x_ratio = img_w / scaled_w
         y_ratio = img_h / scaled_h
 
@@ -1018,17 +1184,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         x2 = int(rx2 * x_ratio)
         y2 = int(ry2 * y_ratio)
 
+        # Pastikan koordinat valid
         x1, y1 = max(0, x1), max(0, y1)
         x2, y2 = min(img_w, x2), min(img_h, y2)
 
+        # Crop jika ukuran valid
         if x2 > x1 and y2 > y1:
-            cropped = self.original_image.crop((x1, y1, x2, y2))
+            cropped = img.crop((x1, y1, x2, y2))
             self.processed_image = cropped
             self.show_image(self.processed_image, self.image_label_right)
 
         self._crop_mode = False
 
-# ---------- Main ----------
+
 def main():
     app = QApplication(sys.argv)
     window = MainWindow()
