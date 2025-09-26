@@ -201,6 +201,24 @@ class ImageProcessor:
         bandstop = ImageChops.add(temp, low)
         return bandstop
 
+    # ================= FILTER IDENTIFY =================
+    def get_filter_ops(self):
+        return {
+            # Built-in PIL / ImageOps
+            "grayscale": lambda img: ImageOps.grayscale(img),
+            "invert": lambda img: ImageOps.invert(img),
+            "blur": lambda img: img.filter(ImageFilter.BLUR),
+            "sharpen_builtin": lambda img: img.filter(ImageFilter.SHARPEN),
+            "edge": lambda img: img.filter(ImageFilter.FIND_EDGES),
+
+            # Custom filters (panggil method yang kamu tulis)
+            "sharpen": lambda img: self.sharpen(img, factor=2),  # factor bisa diatur
+            "unsharp_mask": lambda img: self.unsharp_masking(img),
+            "low_pass": lambda img: self.low_pass_filter(img),
+            "high_pass": lambda img: self.high_pass_filter(img),
+            "bandstop": lambda img: self.bandstop_filter(img),
+        }
+
     # ================= HELP: 2D Convolution =================
     def convolve2d(self, image, kernel):
         from scipy.signal import convolve2d
@@ -282,6 +300,21 @@ class ImageProcessor:
         # Threshold dan pastikan tipe uint8
         edges = (mag > threshold) * 255
         return Image.fromarray(edges.astype(np.uint8))
+
+    def edge_detection_canny(self, image, threshold1=100, threshold2=200):
+        import cv2
+        import numpy as np
+        from PIL import Image
+
+        # Konversi ke grayscale
+        gray = image.convert("L")
+        np_img = np.array(gray, dtype=np.uint8)
+
+        # Deteksi tepi dengan Canny
+        edges = cv2.Canny(np_img, threshold1, threshold2)
+
+        # Balik jadi PIL Image biar konsisten
+        return Image.fromarray(edges)
 
     # ================= Histogram Input =================
     def show_histogram_input(self, image):

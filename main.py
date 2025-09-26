@@ -2,7 +2,9 @@
 import sys
 import cv2
 import numpy as np
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageOps, ImageFilter
+from matplotlib import image
+
 from core.arithmetic_dialog import ArithmeticDialog
 
 # PyQt5
@@ -180,6 +182,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
         self.scale_factor = 1.0
+
+        self.actionReset = QtWidgets.QAction("Reset", self)
+        self.actionReset.setObjectName("actionReset")
 
         ## Buat action Tentang langsung
         self.actionTentang = QtWidgets.QAction("Tentang", self)
@@ -434,6 +439,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         safe_connect("actionSimpan_sebagai", self.save_image_as)
         safe_connect("actionKeluar", self.close)
 
+        # reset
+        safe_connect("actionReset", lambda: self.view_operation("reset"))
+
         # Aritmetic Operational
         safe_connect("actionAdd", lambda: self.apply_arithmetic("add"))
         safe_connect("actionSubtract", lambda: self.apply_arithmetic("subtract"))
@@ -495,6 +503,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         safe_connect("actionFuzzy_Grayscale", self.fuzzy_grayscale)
 
         # Edge / Filter ops
+        # di bagian inisialisasi menu / toolbar
+        safe_connect("actionIdentify", lambda: self.view_operation("identify"))
         safe_connect("actionEdge_Detection_1", lambda: self.apply_by_name("edge_detection1"))
         safe_connect("actionEdge_Detection_2", lambda: self.apply_by_name("edge_detection2"))
         safe_connect("actionEdge_Detection_3", lambda: self.apply_by_name("edge_detection3"))
@@ -508,6 +518,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         safe_connect("actionGaussian_Blur_5x5", lambda: self.apply_gaussian(5))
         safe_connect("actionPrewitt", lambda: self.apply_by_name("edge_detection_prewitt"))
         safe_connect("actionSobel", lambda: self.apply_by_name("edge_detection_sobel"))
+        safe_connect("actionCanny", lambda: self.apply_by_name("edge_detection_canny"))
 
         # Histogram input/output
         safe_connect("actionInput", self.show_histogram_input)
@@ -560,14 +571,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # ========== FILE ============================================
     # ============================================================
     def open_image(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Buka Gambar", "", "Images (*.png *.jpg *.jpeg *.bmp)")
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Buka Gambar", "", "Images (*.png *.jpg *.jpeg *.bmp)"
+        )
         if not file_name:
             return
+
         with Image.open(file_name) as im:
+            # simpan salinan gambar asli
             self.original_image = im.convert("RGB").copy()
-        self.processed_image = None
+
+        # set processed_image ke copy juga (supaya bisa diubah tanpa ganggu original)
+        self.processed_image = self.original_image.copy()
         self._zoom_factor = 1.0
+
+        # tampilkan ke kiri (asli)
         self.show_image(self.original_image, self.image_label_left)
+
+        # kosongkan label kanan
         self.image_label_right.clear()
 
     def get_current_image(self):
@@ -695,6 +716,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.processed_image = self.processed_image.resize((new_w, new_h), Image.LANCZOS)
                 self.show_image(self.processed_image, self.image_label_right)
 
+
         elif op == "zoom_out":
             dlg = SliderDialog("Zoom Out (%)", 10, 90, 50)
 
@@ -724,6 +746,49 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         ptr.setsize(height * width * 4)
         arr = np.frombuffer(ptr, np.uint8).reshape((height, width, 4))
         return cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
+
+    def apply_operation(self, op, img):
+        filter_ops = self.get_filter_ops()
+
+        if op in filter_ops:
+            self.processed_image = filter_ops[op](img)
+            target_label = getattr(self, "image_label_right", None)
+            if target_label is None:
+                target_label = getattr(self, "image_label_left", None)
+            self.show_image(self.processed_image, target_label)
+
+        elif op == "identify":
+            available = list(filter_ops.keys())
+            msg = "Filter yang tersedia:\n" + "\n".join(available)
+            QMessageBox.information(self, "Identify Filters", msg)
+
+
+        elif op == "reset":
+
+            if hasattr(self, "original_image"):
+                self.processed_image = self.original_image.copy()
+
+                self.show_image(self.processed_image, self.image_label_right)  # 👉 tampilkan di kanan
+
+                QMessageBox.information(self, "Reset", "Gambar berhasil dikembalikan ke kondisi awal.")
+
+    # ================= FILTER IDENTIFY =================
+    def get_filter_ops(self):
+        return {
+            # Built-in filters
+            "grayscale": lambda img: ImageOps.grayscale(img),
+            "invert": lambda img: ImageOps.invert(img),
+            "blur": lambda img: img.filter(ImageFilter.BLUR),
+            "sharpen_builtin": lambda img: img.filter(ImageFilter.SHARPEN),
+            "edge": lambda img: img.filter(ImageFilter.FIND_EDGES),
+
+            # Custom filters
+            "sharpen": lambda img: self.sharpen(img, factor=2),
+            "unsharp_mask": lambda img: self.unsharp_masking(img),
+            "low_pass": lambda img: self.low_pass_filter(img),
+            "high_pass": lambda img: self.high_pass_filter(img),
+            "bandstop": lambda img: self.bandstop_filter(img),
+        }
 
     def pil_to_cv(self, pil_image):
         """Konversi PIL.Image ke numpy array OpenCV (BGR)."""
@@ -788,6 +853,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # simpan hasil
         self.processed_image = rgba_pil
         self.show_image(self.processed_image, self.image_label_right)
+
+    def apply_operation(self, op, img):
+        filter_ops = self.get_filter_ops()
+
+        if op in filter_ops:  # ✅ apply filter
+            self.processed_image = filter_ops[op](img)
+            target_label = getattr(self, "image_label_right", None)
+            if target_label is None:
+                target_label = getattr(self, "image_label_left", None)
+            self.show_image(self.processed_image, target_label)
+
+        elif op == "identify":  # ✅ identify ditekan
+            available = list(filter_ops.keys())
+            msg = "Filter yang tersedia:\n" + "\n".join(available)
+            QMessageBox.information(self, "Identify Filters", msg)
+
+        else:
+            # operasi lain (zoom, rotate, dsb.)
+            pass
 
     def wheelEvent(self, event):
         # pilih gambar sumber → hasil terakhir kalau ada, kalau tidak original
