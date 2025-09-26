@@ -757,11 +757,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 target_label = getattr(self, "image_label_left", None)
             self.show_image(self.processed_image, target_label)
 
-        elif op == "identify":
-            available = list(filter_ops.keys())
-            msg = "Filter yang tersedia:\n" + "\n".join(available)
-            QMessageBox.information(self, "Identify Filters", msg)
 
+        elif op == "identify":
+
+            if "identity" in filter_ops:
+                self.processed_image = filter_ops["identity"](img)
+                self.show_image(self.processed_image, self.image_label_right)
+                QMessageBox.information(self, "Identify", "Filter Identity berhasil diterapkan.")
+
+            else:
+                QMessageBox.warning(self, "Identify", "Filter Identity belum tersedia.")
 
         elif op == "reset":
 
@@ -854,6 +859,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.processed_image = rgba_pil
         self.show_image(self.processed_image, self.image_label_right)
 
+    # ================= FILTER OPS =================
+    def get_filter_ops(self):
+        return {
+            # Built-in PIL / ImageOps
+            "grayscale": lambda img: ImageOps.grayscale(img),
+            "invert": lambda img: ImageOps.invert(img),
+            "blur": lambda img: img.filter(ImageFilter.BLUR),
+            "sharpen_builtin": lambda img: img.filter(ImageFilter.SHARPEN),
+            "edge": lambda img: img.filter(ImageFilter.FIND_EDGES),
+
+            # Custom filters
+            "identity": lambda img: img.filter(ImageFilter.Kernel(
+                (3, 3),
+                [0, 0, 0,
+                 0, 1, 0,
+                 0, 0, 0],
+                scale=1
+            )),
+            "sharpen": lambda img: self.sharpen(img, factor=2),
+            "unsharp_mask": lambda img: self.unsharp_masking(img),
+            "low_pass": lambda img: self.low_pass_filter(img),
+            "high_pass": lambda img: self.high_pass_filter(img),
+            "bandstop": lambda img: self.bandstop_filter(img),
+        }
+
+    # ================= APPLY OPERATION =================
     def apply_operation(self, op, img):
         filter_ops = self.get_filter_ops()
 
@@ -864,10 +895,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 target_label = getattr(self, "image_label_left", None)
             self.show_image(self.processed_image, target_label)
 
-        elif op == "identify":  # ✅ identify ditekan
-            available = list(filter_ops.keys())
-            msg = "Filter yang tersedia:\n" + "\n".join(available)
-            QMessageBox.information(self, "Identify Filters", msg)
+        elif op == "reset":  # ✅ reset ke gambar awal
+            if hasattr(self, "original_image"):
+                self.processed_image = self.original_image.copy()
+                self.show_image(self.processed_image, self.image_label_right)
+                QMessageBox.information(self, "Reset", "Gambar berhasil dikembalikan ke kondisi awal.")
+
+        elif op == "identify":  # ✅ apply identity filter
+            if "identity" in filter_ops:
+                self.processed_image = filter_ops["identity"](img)
+                self.show_image(self.processed_image, self.image_label_right)
+                QMessageBox.information(self, "Identify", "Filter Identity berhasil diterapkan.")
+            else:
+                QMessageBox.warning(self, "Identify", "Filter Identity belum tersedia.")
 
         else:
             # operasi lain (zoom, rotate, dsb.)

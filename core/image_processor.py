@@ -202,22 +202,18 @@ class ImageProcessor:
         return bandstop
 
     # ================= FILTER IDENTIFY =================
-    def get_filter_ops(self):
-        return {
-            # Built-in PIL / ImageOps
-            "grayscale": lambda img: ImageOps.grayscale(img),
-            "invert": lambda img: ImageOps.invert(img),
-            "blur": lambda img: img.filter(ImageFilter.BLUR),
-            "sharpen_builtin": lambda img: img.filter(ImageFilter.SHARPEN),
-            "edge": lambda img: img.filter(ImageFilter.FIND_EDGES),
-
-            # Custom filters (panggil method yang kamu tulis)
-            "sharpen": lambda img: self.sharpen(img, factor=2),  # factor bisa diatur
-            "unsharp_mask": lambda img: self.unsharp_masking(img),
-            "low_pass": lambda img: self.low_pass_filter(img),
-            "high_pass": lambda img: self.high_pass_filter(img),
-            "bandstop": lambda img: self.bandstop_filter(img),
-        }
+    def apply_operation(self, op, img):
+        filter_ops = self.get_filter_ops()
+        if op in filter_ops:
+            self.processed_image = filter_ops[op](img)
+            self.show_image(self.processed_image, self.image_label_right)
+        elif op == "reset":
+            if hasattr(self, "original_image"):
+                self.processed_image = self.original_image.copy()
+                self.show_image(self.processed_image, self.image_label_right)
+                QMessageBox.information(self, "Reset", "Gambar berhasil dikembalikan ke kondisi awal.")
+        else:
+            pass
 
     # ================= HELP: 2D Convolution =================
     def convolve2d(self, image, kernel):
