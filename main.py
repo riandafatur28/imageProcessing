@@ -686,24 +686,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         elif op == "zoom_in":
             dlg = SliderDialog("Zoom In (%)", 10, 200, 50)
+
             if dlg.exec_():
                 factor = 1.0 + (dlg.value / 100.0)
-                self.scale_factor *= factor
-                w, h = self.original_image.size  # ✅ selalu dari original untuk kualitas bagus
-                new_w = int(w * self.scale_factor)
-                new_h = int(h * self.scale_factor)
-                self.processed_image = self.original_image.resize((new_w, new_h), Image.LANCZOS)
+                w, h = self.processed_image.size
+                new_w = int(w * factor)
+                new_h = int(h * factor)
+                self.processed_image = self.processed_image.resize((new_w, new_h), Image.LANCZOS)
+                self.show_image(self.processed_image, self.image_label_right)
 
         elif op == "zoom_out":
             dlg = SliderDialog("Zoom Out (%)", 10, 90, 50)
+
             if dlg.exec_():
                 factor = 1.0 - (dlg.value / 100.0)
-                self.scale_factor *= factor
-                self.scale_factor = max(0.1, self.scale_factor)
-                w, h = self.original_image.size  # ✅ resize dari original juga
-                new_w = int(w * self.scale_factor)
-                new_h = int(h * self.scale_factor)
-                self.processed_image = self.original_image.resize((new_w, new_h), Image.LANCZOS)
+                factor = max(0.1, factor)
+                w, h = self.processed_image.size
+                new_w = int(w * factor)
+                new_h = int(h * factor)
+                self.processed_image = self.processed_image.resize((new_w, new_h), Image.LANCZOS)
+                self.show_image(self.processed_image, self.image_label_right)
 
         elif op == "crop":
             QMessageBox.information(self, "Crop", "Drag pada gambar kiri untuk memilih area crop.")

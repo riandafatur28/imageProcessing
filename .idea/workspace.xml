@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1a83b206-ca0c-4781-a053-58af24013a87" name="Changes" comment="memperbaiki arithmetical">
+    <list default="true" id="1a83b206-ca0c-4781-a053-58af24013a87" name="Changes" comment="memperbaiki tampilan yang diedit menjadi gambar terakhir bukan gambar pertama">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
@@ -208,7 +208,8 @@
       <workItem from="1758695403297" duration="3597000" />
       <workItem from="1758710035920" duration="6847000" />
       <workItem from="1758774506123" duration="1458000" />
-      <workItem from="1758808443614" duration="3744000" />
+      <workItem from="1758808443614" duration="3972000" />
+      <workItem from="1758848172709" duration="1299000" />
     </task>
     <task id="LOCAL-00001" summary="terselamatkannn">
       <option name="closed" value="true" />
@@ -322,7 +323,15 @@
       <option name="project" value="LOCAL" />
       <updated>1758716270505</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="memperbaiki tampilan yang diedit menjadi gambar terakhir bukan gambar pertama">
+      <option name="closed" value="true" />
+      <created>1758812445544</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1758812445544</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -342,7 +351,8 @@
     <MESSAGE value="memperbaiki zoom, rotation, translate" />
     <MESSAGE value="memperbaiki tentang" />
     <MESSAGE value="memperbaiki arithmetical" />
-    <option name="LAST_COMMIT_MESSAGE" value="memperbaiki arithmetical" />
+    <MESSAGE value="memperbaiki tampilan yang diedit menjadi gambar terakhir bukan gambar pertama" />
+    <option name="LAST_COMMIT_MESSAGE" value="memperbaiki tampilan yang diedit menjadi gambar terakhir bukan gambar pertama" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/tugasBuQon$image_processor.coverage" NAME="image_processor Coverage Results" MODIFIED="1758185934596" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/core" />
